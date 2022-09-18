@@ -1,0 +1,20 @@
+{
+	"wall_type":"leftconst",
+	"sequence":"rueppel",
+	"modulo":2,
+	"left_values":[0,1],
+
+	"top":2,
+	"bottom":500,
+	"left":0,
+	"right":498,
+
+
+	"colours": {
+		"0":"#F00",
+		"1":[0, 0, 255],
+		"2":"#101010",
+		"default":"#AAA"
+	}
+
+}

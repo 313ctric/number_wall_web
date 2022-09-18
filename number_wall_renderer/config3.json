@@ -1,0 +1,1 @@
+{"wall_type":"bi_directional","sequence":"rook","modulo":2,"left_values":[0,1],"sequence_start":0,"top":0,"bottom":100,"left":0,"right":100,"colours":{"0":"#ffffff","1":"#000000","default":"#808080"},"output_file":"out.png"}
