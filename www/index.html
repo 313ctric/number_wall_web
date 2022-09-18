@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Number wall viewer</title>
+    <script src="./number_wall_renderer.js"></script>
+<style>
+
+.stacked_radio {
+    display: flex;
+    flex-direction: column;
+    margin-left: 20px;
+}
+
+.number_input {
+    margin: 5px 0;
+    width: 60px;
+}
+
+.boundary_table, .boundary_table td {
+    border: solid thin;
+}
+
+#sequence {
+    min-width: 90%;
+}
+#colour_list {
+    border: solid thin;
+    width: min-content;
+}
+#colour_list div {
+    width: max-content;
+    display: flex;
+    align-items: center;
+    flex-direction: row;
+}
+#colour_list div * {
+    margin: 3px;
+}
+
+.invalid {
+    background-color:lightcoral;
+    border-color: red;
+}
+
+.image_viewer {
+    max-width: 100%;
+    overflow: scroll;
+}
+
+#rendering_message {
+    z-index: 1;
+    opacity: 80%;
+    position: absolute;
+    left: 0;
+    width: 100%;
+}
+
+#output {
+    width: 80%;
+    height: 100px;
+}
+
+</style>
+
+<script>
+
+function console_out(thing) {
+    let output = document.getElementById('output');
+    console.error(thing);
+    output.value += thing + "\n";
+}
+
+function parse_number_sequence(sequence) {
+    let split = sequence.split(',');
+    let parsed = [];
+    for (var i = 0; i < split.length; i++) {
+        let n = split[i];
+        let num = parseInt(n);
+        if (isNaN(num) || !isFinite(num)) {
+            return null;
+        }
+        parsed.push(num)
+    }
+    return parsed;
+}
+
+function parse_special_sequence(sequence) {
+    sequence = sequence.toLowerCase().trim();
+    const valid_sequences = ['knight', 'rook', 'pagoda', 'rueppel', 'zigzag']
+    if (valid_sequences.includes(sequence)) {
+        return sequence;
+    } else {
+        return null;
+    }
+}
+
+var valid = false;
+function update(rendering) {
+    valid = true;
+
+    let auto_render = document.getElementById('auto_render').checked;
+
+    let sequence = document.getElementById('sequence');
+    let predefined_sequence = document.getElementById('predefined_sequence');
+
+    let sequence_type = 
+        document.getElementById('sequence_type_repeating').checked ? "repeating" :
+            (document.getElementById('sequence_type_left_const').checked ? "left_const" : "bi_directional");
+
+    let modulo = parseInt(document.getElementById('modulo').value);
+
+    let left_edge_0 = parseInt(document.getElementById('left_edge_0').value);
+    let left_edge_1 = parseInt(document.getElementById('left_edge_1').value);
+
+    let sequence_start = parseInt(document.getElementById('sequence_start').value);
+
+    let top    = parseInt(document.getElementById('top').value);
+    let bottom = parseInt(document.getElementById('bottom').value);
+    let left   = parseInt(document.getElementById('left').value);
+    let right  = parseInt(document.getElementById('right').value);
+
+    // this doesn't need validating
+    let colour_default = document.getElementById('colour_default').value;
+
+    let colour_list = document.getElementById('colour_list');
+    let colours = [];
+    for (let i = 0; i < colour_list.childElementCount; i++) {
+        let c = colour_list.children[i];
+        let num = parseInt(c.firstElementChild.value);
+        if (isNaN(num) || !isFinite(num)) {
+            if (auto_render || rendering) {
+                console_out('Invalid colour number');
+            }
+            c.firstElementChild.classList.add('invalid');
+            valid = false;
+        } else {
+            sequence.classList.remove('invalid');
+            colours.push( {value: num, colour: c.children[1].value} );
+        }
+    };
+
+
+    if (sequence.value != predefined_sequence.value) {
+        predefined_sequence.value = ""
+    }
+    let number_sequence = parse_number_sequence(sequence.value);
+    let special_sequence = parse_special_sequence(sequence.value);
+    if (number_sequence == null && special_sequence == null) {
+        if (auto_render || rendering) {
+            console_out('Invalid sequence');
+        }
+        sequence.classList.add('invalid');
+        valid = false;
+    } else {
+        sequence.classList.remove('invalid');
+    }
+
+    if (isNaN(modulo) || !isFinite(modulo) || modulo < 0 || modulo == 1) {
+        if (auto_render || rendering) {
+            console_out('Invalid modulus');
+        };
+        valid = false;
+        document.getElementById('modulo').classList.add('invalid');
+    }
+    else {
+        document.getElementById('modulo').value = modulo;
+        document.getElementById('modulo').classList.remove('invalid');
+    }
+
+    if (isNaN(left_edge_0) || !isFinite(left_edge_0)) {
+        if (auto_render || rendering) {
+            console_out('Invalid left edge 0');
+        };
+        valid = false;
+        document.getElementById('left_edge_0').classList.add('invalid');
+    }
+    else {
+        document.getElementById('left_edge_0').value = left_edge_0;
+        document.getElementById('left_edge_0').classList.remove('invalid');
+    }
+    if (isNaN(left_edge_1) || !isFinite(left_edge_1)) {
+        if (auto_render || rendering) {
+            console_out('Invalid left edge 1');
+        };
+        valid = false;
+        document.getElementById('left_edge_1').classList.add('invalid');
+    }
+    else {
+        document.getElementById('left_edge_1').value = left_edge_1;
+        document.getElementById('left_edge_1').classList.remove('invalid');
+    }
+
+    if (isNaN(sequence_start) || !isFinite(sequence_start)) {
+        if (auto_render || rendering) {
+            console_out('Invalid sequence start index');
+        };
+        valid = false;
+        document.getElementById('sequence_start').classList.add('invalid');
+    }
+    else {
+        document.getElementById('sequence_start').value = sequence_start;
+        document.getElementById('sequence_start').classList.remove('invalid');
+    }
+
+
+
+    if (isNaN(top) || !isFinite(top) || top < 0) {
+        if (auto_render || rendering) {
+            console_out('Invalid top line value');
+        };
+        valid = false;
+        document.getElementById('top').classList.add('invalid');
+    }
+    else {
+        document.getElementById('top').value = top;
+        document.getElementById('top').classList.remove('invalid');
+    }
+    if (isNaN(bottom) || !isFinite(bottom) || bottom < top) {
+        if (auto_render || rendering) {
+            console_out('Invalid bottom line value');
+        };
+        valid = false;
+        document.getElementById('bottom').classList.add('invalid');
+    }
+    else {
+        document.getElementById('bottom').value = bottom;
+        document.getElementById('bottom').classList.remove('invalid');
+    }
+
+    if (sequence_type == "repeating") {
+        document.getElementById('left_edge_0').disabled = true;
+        document.getElementById('left_edge_1').disabled = true;
+        document.getElementById('left').min = "0";
+        document.getElementById('right').min = "0";
+        document.getElementById('sequence_start').disabled = true;
+        if (isNaN(left) || !isFinite(left) || left < 0 || (number_sequence != null && left >= number_sequence.length) ) {
+            if (auto_render || rendering) {
+                console_out('Invalid left column value');
+            };
+            valid = false;
+            document.getElementById('left').classList.add('invalid');
+        }
+        else {
+            document.getElementById('left').value = left;
+            document.getElementById('left').classList.remove('invalid');
+        };
+
+        if (special_sequence != null) {
+            valid = false;
+            if (auto_render || rendering) {
+                console_out('Cannot use a predefined sequence with a repeating wall type');
+            };
+        };
+    }
+    else if (sequence_type == "left_const") {
+        document.getElementById('left_edge_0').disabled = false;
+        document.getElementById('left_edge_1').disabled = false;
+        document.getElementById('left').min = "0";
+        document.getElementById('right').min = "0";
+        document.getElementById('sequence_start').disabled = true;
+        if (isNaN(left) || !isFinite(left) || left < 0 || (number_sequence != null && left >= number_sequence.length) ) {
+            if (auto_render || rendering) {
+                console_out('Invalid left column value');
+            };
+            valid = false;
+            document.getElementById('left').classList.add('invalid');
+        }
+        else {
+            document.getElementById('left').value = left;
+            document.getElementById('left').classList.remove('invalid');
+        };
+    }
+    else { // sequence_type = "bi_directional"
+        document.getElementById('left_edge_0').disabled = true;
+        document.getElementById('left_edge_1').disabled = true;
+        document.getElementById('left').min = "";
+        document.getElementById('right').min = "";
+        document.getElementById('sequence_start').disabled = false;
+        if (isNaN(left) || !isFinite(left)) {
+            if (auto_render || rendering) {
+                console_out('Invalid left column value');
+            };
+            valid = false;
+            document.getElementById('left').classList.add('invalid');
+        }
+        else {
+            document.getElementById('left').value = left;
+            document.getElementById('left').classList.remove('invalid');
+        };
+    };
+
+    if (isNaN(right) || !isFinite(right) || right < left || (number_sequence != null && right >= number_sequence.length)) {
+        if (auto_render || rendering) {
+            console_out('Invalid right column value');
+        };
+        valid = false;
+        document.getElementById('right').classList.add('invalid');
+    }
+    else {
+        document.getElementById('right').value = right;
+        document.getElementById('right').classList.remove('invalid');
+    }
+
+    if (valid) {
+        let width = right-left+1;
+        let height = bottom-top+1;
+        document.getElementById('width_height_display').innerText = `${width}x${height}`;
+    } else {
+        document.getElementById('width_height_display').innerText = '';
+    }
+
+    if (valid && auto_render && !rendering) {
+        render();
+    }
+}
+
+function get_state_object() {
+    let sequence = document.getElementById('sequence');
+    let number_sequence = parse_number_sequence(sequence.value);
+    let special_sequence = parse_special_sequence(sequence.value);
+
+    let end_sequence = number_sequence == null ? special_sequence : number_sequence;
+
+    let sequence_type = 
+        document.getElementById('sequence_type_repeating').checked ? "repeating" :
+            (document.getElementById('sequence_type_left_const').checked ? "left_const" : "bi_directional");
+
+    let modulo = parseInt(document.getElementById('modulo').value);
+
+    let left_edge_0 = parseInt(document.getElementById('left_edge_0').value);
+    let left_edge_1 = parseInt(document.getElementById('left_edge_1').value);
+
+    let sequence_start = parseInt(document.getElementById('sequence_start').value);
+
+    let top    = parseInt(document.getElementById('top').value);
+    let bottom = parseInt(document.getElementById('bottom').value);
+    let left   = parseInt(document.getElementById('left').value);
+    let right  = parseInt(document.getElementById('right').value);
+
+    let colour_default = document.getElementById('colour_default').value;
+
+    let colour_list = document.getElementById('colour_list');
+    let colours = {};
+    for (let i = 0; i < colour_list.childElementCount; i++) {
+        let c = colour_list.children[i];
+        let num = parseInt(c.firstElementChild.value);
+        colours[num] = c.children[1].value;
+    };
+    colours.default = colour_default;
+
+
+    let x = {
+        wall_type:sequence_type,
+        sequence:end_sequence,
+        modulo:modulo,
+        left_values:[left_edge_0,left_edge_1],
+        sequence_start:sequence_start,
+
+        top:top,
+        bottom:bottom,
+        left:left,
+        right:right,
+
+        colours: colours,
+
+        output_file:"out.png",
+    };
+    return x;
+}
+
+var out_file_url = null;
+async function render() {
+    // check that the current config is OK
+    update(true);
+    if (!valid) {
+        return;
+    };
+
+    // get the current config
+    let state = get_state_object();
+    // we do a little bit of logging
+    console.log(state);
+    console.log(JSON.stringify(state));
+
+    // show rendering message
+    if (out_file_url != null) {
+        window.URL.revokeObjectURL(out_file_url);
+    }
+    document.getElementById('rendering_message').hidden = false;
+    //document.getElementById('viewer').hidden = true;
+
+    
+    // render the wall
+    render_wall(state).then(() => {
+        // create an object url
+        out_file_url = window.URL.createObjectURL(out_file); // out_file defined in the wasm js script
+        
+        // show the image to the screen
+        let viewer = document.getElementById('viewer');
+        viewer.src = out_file_url;
+
+        document.getElementById('rendering_message').hidden = true;
+        viewer.hidden = false;
+    }).catch((reason) => {
+        console_out("Encountered an error while running the program:\n\t"+reason);
+
+        document.getElementById('rendering_message').hidden = true;
+        document.getElementById('viewer').hidden = true;
+    });
+
+}
+function predefined_select() {
+    let predefined_value = document.getElementById('predefined_sequence').value;
+    if (predefined_value != "") {
+        document.getElementById('sequence').value = predefined_value;
+    }
+}
+async function oeis_load() {
+    var oeis_select = document.getElementById('oeis_load');
+    var oeis_id = oeis_select.value;
+    if (oeis_select.validationMessage != "") {
+        console_out("Invalid OEIS id");
+        oeis_select.classList.add('invalid');
+        return;
+    } else {
+        oeis_select.classList.remove('invalid');
+    }
+    
+    console_out("OEIS load does not work due to CORS issues");
+
+    // let resp = await fetch('https://oeis.org/search?fmt=json&q=id:'+oeis_id).then((resp) => resp.json());
+    // console.log(resp);=
+}
+
+function colour_add() {
+    let selector = document.createElement('div');
+
+    let number_in = document.createElement('input');
+    number_in.type = "number";
+    number_in.classList.add("number_input")
+    number_in.autocomplete="off";
+    number_in.step="1";
+    number_in.value="1";
+    number_in.onchange= () => {update()};
+
+    let colour_in = document.createElement('input');
+    colour_in.type="color"
+    colour_in.autocomplete="off";
+    colour_in.value="#000000";
+    colour_in.onchange= () => {update()};
+
+    let remove_button = document.createElement('button');
+    remove_button.innerText = "Remove";
+    remove_button.onclick = () => {
+        selector.remove();
+        update();
+    }
+
+    selector.appendChild(number_in);
+    selector.appendChild(colour_in);
+    selector.appendChild(remove_button);
+
+    document.getElementById('colour_list').appendChild(selector);
+}
+
+</script>
+
+
+</head>
+<body>
+
+<h1>Number wall web viewer</h1>
+<p>Source code available <a href="https://github.com/313ctric/number_wall_web">here</a>.</p>
+<div>
+    <label for="sequence"><b>Sequence:</b></label>
+    <input id="sequence" type="text" placeholder="1, 2, 3, 4, 5, 6, 7, 8, 9, 10" oninput="update()" autocomplete="off"/>
+    <div style="margin-left: 30px; margin-top: 5px;">
+        <label for="predefined_sequence">Select a predefined sequence:</label>
+        <select id="predefined_sequence" autocomplete="off" onchange="predefined_select(); update();">
+            <option selected value=""></option>
+            <option value="rook">Rook</option>
+            <option value="knight">Knight</option>
+            <option value="pagoda">Pagoda</option>
+            <option value="rueppel">Rueppel</option>
+            <option value="zigzag">ZigZag</option>
+        </select>
+    </div>
+    <div style="margin-left: 30px; margin-top: 5px;">
+        <label for="oeis_load">Load sequence from OEIS (broken due to CORS issues):</label>
+        <input  id="oeis_load" type="text" placeholder="AXXXXXX" pattern="[aA][0-9]+" autocomplete="off"/>
+        <button onclick="oeis_load()">Load</button>
+    </div>
+</div>
+
+<div style="display: flex;">
+
+<div style="flex: 50%;">
+    <div>
+        <span><b>Sequence type:</b></span>
+
+        <div class="stacked_radio">
+            <div>
+                <label for="sequence_type_repeating">Repeating</label>
+                <input type="radio" name="sequence_type" id="sequence_type_repeating" value="repeating" autocomplete="off" checked onchange="update()" selected/>
+            </div>
+            <div>
+                <label for="sequence_type_left_const">Constant left value</label>
+                <input type="radio" name="sequence_type" id="sequence_type_left_const" value="left_const" autocomplete="off" onchange="update()"/>
+            </div>
+            <div>
+                <label for="sequence_type_bi_directional">Bi directional</label>
+                <input type="radio" name="sequence_type" id="sequence_type_bi_directional" value="bi_directional" autocomplete="off" onchange="update()"/>
+            </div>
+        </div>
+    </div>
+
+    <div>
+        <label for="modulo"><b>Modulus (0 for none):</b></label>
+        <input type="number" id="modulo" placeholder="2" value="2" step="1" min="0" autocomplete="off" class="number_input" onchange="update()"/>
+    </div>
+
+    <div>
+        <label for="left_edge_0"><b>Left edge values:</b></label>
+        <input id="left_edge_0" type="number" value="0" placeholder="0" step="1" autocomplete="off" class="number_input" onchange="update()" disabled/>
+        <input id="left_edge_1" type="number" value="1" placeholder="1" step="1" autocomplete="off" class="number_input" onchange="update()" disabled/>
+    </div>
+    <div id="sequence_start_holder">
+        <label for="sequence_start"><b>Sequence start index:</b></label>
+        <input id="sequence_start" type="number" value="0" placeholder="0" step="1" autocomplete="off" class="number_input" onchange="update()" disabled/>
+    </div>
+</div>
+
+<div style="flex: 50%;">
+    <div>
+        <span><b>Render Boundary</b></span>
+
+        <table class="boundary_table"><tbody>
+            <tr><td></td>
+            <td>
+                <label for="top">Top:</label>
+                <input id="top" type="number" value="0" placeholder="0" step="1" min="0" autocomplete="off" class="number_input" onchange="update()"/>
+            </td>
+            <td></td></tr>
+            <tr>
+            <td>
+                <label for="left">Left:</label>
+                <input id="left" type="number" value="0" placeholder="0" step="1" min="0" autocomplete="off" class="number_input" onchange="update()"/>
+            </td>
+            <td><span id="width_height_display"></span></td>
+            <td>
+                <label for="right">Right:</label>
+                <input id="right" type="number" value="100" placeholder="100" step="1" min="0" autocomplete="off" class="number_input" onchange="update()"/>
+            </td>
+            </tr>
+            <tr><td></td>
+            <td>
+                <label for="bottom">Bottom:</label>
+                <input id="bottom" type="number" value="100" placeholder="100" step="1" min="0" autocomplete="off" class="number_input" onchange="update()"/>
+            </td>
+            <td></td></tr>
+        </tbody></table>
+    </div>
+
+    <div>
+        <span><b>Colours</b></span>
+
+        <div>
+            <label for="colour_default">Default:</label>
+            <input id="colour_default" type="color" value="#808080" autocomplete="off" onchange="update()"/>
+        </div>
+
+        <div id="colour_list">
+
+            <div>
+                <input type="number" step="1" autocomplete="off" class="number_input" value="0" onchange="update()"/>
+                <input type="color" autocomplete="off" onchange="update()" value="#FFFFFF"/>
+                <button onclick="event.target.parentElement.remove(); update()">Remove</button>
+            </div>
+            <div>
+                <input type="number" step="1" autocomplete="off" class="number_input" value="1" onchange="update()"/>
+                <input type="color" autocomplete="off" onchange="update()" value="#000000"/>
+                <button onclick="event.target.parentElement.remove(); update()">Remove</button>
+            </div>
+
+        </div>
+        <button onclick="colour_add(); update()">Add</button>
+    </div>
+</div>
+
+</div>
+
+<div>
+    <button onclick="render()">Render</button>
+    <label for="auto_render">Auto re-render:</label>
+    <input id="auto_render" type="checkbox" autocomplete="off" onchange="update()"/>
+</div>
+
+<div>
+    <span><b>Output console</b></span>
+    <div>
+        <textarea id="output" autocomplete="off" readonly></textarea>
+    </div>
+</div>
+
+<div>
+    <span><b>Output Image</b></span>
+    <div class="image_viewer">
+        <img src="./rendering.png" hidden id="rendering_message"/>
+        <img src="" id="viewer">
+    </div>
+</div>
+
+</body>
+</html>
